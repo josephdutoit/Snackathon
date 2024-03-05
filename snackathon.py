@@ -134,6 +134,7 @@ def evaluate(model, objective, val_loader, device, epoch):
     # and spatial complexity improvements, which allows for larger validation batch
     # sizes so it’s recommended
     preds = []
+    top5_preds = []
 
     with torch.no_grad():
         for x, y_truth in val_loader:
@@ -145,7 +146,12 @@ def evaluate(model, objective, val_loader, device, epoch):
             val_loss = objective(y_hat, y_truth)
             val_acc = accuracy(y_hat, y_truth)
             preds.append(LABEL_LIST[int(torch.argmax(y_hat, dim=1).item())])
-            # print(LABEL_LIST[int(torch.argmax(y_hat, dim=1).item())])
+            
+            # Do top 5
+            _, ind = y_hat.topk(5, dim=1, largest=True)
+            ind = ind.tolist()[0]
+            top5_preds.append([LABEL_LIST[int(ind[i])] for i in range(len(ind))])
+
             val_losses += val_loss.item()
             val_accs += val_acc
 
@@ -153,6 +159,12 @@ def evaluate(model, objective, val_loader, device, epoch):
     with open('/home/jcdutoit/Snackathon/val_'+str(epoch)+'.txt', 'w') as f:
         for pred in preds:
             f.write(pred + '\n')
+
+    with open('/home/jcdutoit/Snackathon/top5_val_'+str(epoch)+'.txt', 'w') as f:
+        for idx in top5_preds:
+            pred_string = ', '.join(idx)
+            f.write(pred_string + '\n')
+
     model.train()
 
     return val_losses/batches, val_accs/batches
@@ -297,22 +309,32 @@ def predict(model, test_loader, device):
             # Find most likely label
             preds1.append(LABEL_LIST[int(torch.argmax(y_hat, dim=1).item())])
             # Find top 5 most likely for each image
-            top5_indices = torch.topk(y_hat, 5)
+            top5_indices = torch.topk(y_hat, 5, dim=1, largest=True)
             row = []
             for index in top5_indices:
                 row.append(LABEL_LIST[int(index.item())])
             preds5.append(row)
 
+    # Extract image paths
+    with open('/home/jcdutoit/Snackathon/bev_classification/datasets/test_edited.txt') as f:
+        image_paths = [line.rstrip() for line in f]
+
+    # Write results
     print("Writing to /home/jcdutoit/Snackathon/top1.txt")
+    image_index = 0
     with open('/home/jcdutoit/Snackathon/val_top1.txt', 'w') as f:
         for pred in preds1:
-            f.write(", " + pred + '\n')
+            f.write(image_paths[image_index] + ", " + pred + '\n')
+            image_index += 1
+
     print("Writing to /home/jcdutoit/Snackathon/top5.txt")
+    image_index = 0
     with open('/home/jcdutoit/Snackathon/val_top5.txt', 'w') as f:
         for row in preds5:
             for pred in row:
-                f.write(", " + pred)
+                f.write(image_paths[image_index] + ", " + pred)
             f.write('\n')
+            image_index += 1
 
 
 
