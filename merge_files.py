@@ -1,4 +1,4 @@
-epoch = 3000
+epoch = 8000
 
 
 def merge_files(file, out_file):

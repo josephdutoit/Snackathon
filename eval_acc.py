@@ -42,7 +42,7 @@ def print_acc(epoch):
 
 	return correct / len(truth)
 
-for epoch in range(0, 3500, 500):
+for epoch in range(0, 10500, 500):
 	print("\nEpoch:" , epoch)
 	acc = print_acc(epoch)
 
