@@ -1,4 +1,4 @@
-epoch = 1000
+epoch = 2500
 
 
 def merge_files(file, out_file):
@@ -13,10 +13,10 @@ def merge_files(file, out_file):
             w.write(paths[i]+","+labels[i]+"\n")
 
 top5 = "top5_val_"+str(epoch)+".txt"
-out5 = "top5_val.txt"
+out5 = "val_top5.txt"
 
 top1 = "val_"+str(epoch)+".txt"
-out1 = "top1_val.txt"
+out1 = "val_top1.txt"
 
 merge_files(top5, out5)
 merge_files(top1, out1)
