@@ -277,7 +277,9 @@ class PredictionDataset(torch.utils.data.Dataset):
         self.transform = transform
         self.data_dir = '/home/jcdutoit/Snackathon/bev_classification'
         self.data_labels = "/home/jcdutoit/Snackathon/bev_classification/datasets/test_edited.txt"
-        self.df = pd.DataFrame(self.data_labels, columns=['image'])
+        raw_txt = np.loadtxt(self.data_labels, dtype=str)
+        lines = np.array([line for line in raw_txt])
+        self.df = pd.DataFrame(lines, columns=['image'])
         self.transform = transforms.Compose([transforms.Resize(256),
                                              transforms.CenterCrop(224),
                                              transforms.PILToTensor()])
