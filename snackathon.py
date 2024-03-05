@@ -122,6 +122,7 @@ def accuracy(y_hat, y_truth):
     acc = torch.mean((preds == y_truth).float())
     return acc
 
+
 def evaluate(model, objective, val_loader, device, epoch):
     """Gets average accuracy and loss for the validation set"""
     val_losses = 0
@@ -155,6 +156,7 @@ def evaluate(model, objective, val_loader, device, epoch):
     model.train()
 
     return val_losses/batches, val_accs/batches
+
 
 def train(start_frozen=False, model_unfreeze=0):
     """Fine-tunes a CNN
@@ -232,8 +234,10 @@ def train(start_frozen=False, model_unfreeze=0):
                 val_losses.append(val_loss)
                 val_accs.append(val_acc)
 
-            # pbar.set_description('train loss:{:.4f}, train accuracy:{:.4f}.'.format(train_loss.item(), train_acc))
-            pbar.set_description('train loss:{:.4f}, train accuracy:{:.4f}, val loss:{:.4f}, val accuracy:{:.4f}.'.format(train_loss.item(), train_acc, val_losses[-1], val_accs[-1]))
+            pbar.set_description('train loss:{:.4f}, train accuracy:{:.4f}, val loss:{:.4f}, val accuracy:{:.4f}.'.format(train_loss.item(), 
+                                                                                                                          train_acc, 
+                                                                                                                          val_losses[-1], 
+                                                                                                                          val_accs[-1]))
             pbar.update(1)
             cnt += 1
 
@@ -252,7 +256,87 @@ def train(start_frozen=False, model_unfreeze=0):
     # plt.show()
 
 
+########################################
+# Use saved model to make predictions
+########################################
+
+class PredictionDataset(torch.utils.data.Dataset):
+    def __init__(self, transform=None, train=False):
+        self.transform = transform
+        self.data_dir = '/home/jcdutoit/Snackathon/bev_classification'
+        self.data_labels = "/home/jcdutoit/Snackathon/bev_classification/datasets/test_edited.txt"
+        self.df = pd.DataFrame(self.data_labels, columns=['image'])
+        self.transform = transforms.Compose([transforms.Resize(256),
+                                             transforms.CenterCrop(224),
+                                             transforms.PILToTensor()])
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        # Get the image from the file
+        img_path = os.path.join(self.data_dir, self.df.iloc[idx, 0])
+        image = Image.open(img_path)
+
+        # Transform the image
+        image_t = self.transform(image).float()
+        return image_t
+    
+
+def predict(model, test_loader, device):
+    """Runs data through saved model and writes predictions to .txt files"""
+    # Store predicted labels
+    preds1 = []
+    preds5 = []
+
+    with torch.no_grad():
+        for x in test_loader:
+            x = x.to(device)
+            y_hat = model(x)
+
+            # Find most likely label
+            preds1.append(LABEL_LIST[int(torch.argmax(y_hat, dim=1).item())])
+            # Find top 5 most likely for each image
+            top5_indices = torch.topk(y_hat, 5)
+            row = []
+            for index in top5_indices:
+                row.append(LABEL_LIST[int(index.item())])
+            preds5.append(row)
+
+    print("Writing to /home/jcdutoit/Snackathon/top1.txt")
+    with open('/home/jcdutoit/Snackathon/val_top1.txt', 'w') as f:
+        for pred in preds1:
+            f.write(", " + pred + '\n')
+    print("Writing to /home/jcdutoit/Snackathon/top5.txt")
+    with open('/home/jcdutoit/Snackathon/val_top5.txt', 'w') as f:
+        for row in preds5:
+            for pred in row:
+                f.write(", " + pred)
+            f.write('\n')
+
+
 
 if __name__ == "__main__":
+
+    ##########################
     # Train (no unfreezing)
-    train(start_frozen=False, model_unfreeze=0)
+    ##########################
+    # train(start_frozen=False, model_unfreeze=0)
+
+
+    ################################
+    # Load and use trained model
+    ################################
+    # Load trained model
+    model = torch.load('/home/jcdutoit/Snackathon/snack_model.pt')
+    model.eval()
+
+    # Initialize other values
+    device = torch.device('cuda:0')
+    test_dataset = PredictionDataset()
+    test_loader = DataLoader(test_dataset,
+                             shuffle=False,
+                             num_workers=8,
+                             batch_size=32)
+
+    predict(model, test_loader, device)
